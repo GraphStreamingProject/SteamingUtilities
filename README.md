@@ -7,4 +7,6 @@ The graph stream interface is defined in `include/graph_stream.h` and two exampl
 Additional stream formats can be defined in user code by inheriting from the `GraphStream` class.
 
 ## Generation
-The library includes classes for either dynamic (insert and delete) or static (insert only) stream generation.
+The library includes classes for either dynamic (insert and delete) or static (insert only) stream generation. The classes are listed below.
+### StaticErdosGenerator
+Quickly generates a static stream that defines an Erdos-Renyi graph. The input to this generator is the number of vertices (must be a power of two) and the density of the desired graph.
