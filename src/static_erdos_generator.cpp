@@ -34,10 +34,14 @@ void write_to_file(GraphStream *stream, StaticErdosGenerator &gen) {
 }
 
 void StaticErdosGenerator::to_binary_file(std::string file_name) {
+  edge_idx = 0;
   BinaryFileStream output_stream(file_name, false);
+  write_to_file(&output_stream, *this);
 }
 void StaticErdosGenerator::to_ascii_file(std::string file_name) {
+  edge_idx = 0;
   AsciiFileStream output_stream(file_name, true);
+  write_to_file(&output_stream, *this);
 }
 
 static Edge extract_edge(size_t v_bits, size_t packed_edge) {

@@ -27,6 +27,9 @@ DynamicErdosGenerator::DynamicErdosGenerator(size_t seed, node_id_t num_vertices
   if (portion_adtl < 0 || portion_adtl > 1) {
     throw StreamException("DynamicErdosGenerator: portion_adtl out of range [0, 1]");
   }
+  if (rounds == 0 && (portion_adtl > 0 || portion_delete > 0)) {
+    throw StreamException("DynamicErdosGenerator: round must be > 0 if adtl or delete > 0");
+  }
 
   // create a random number generator
   std::mt19937_64 gen(seed);
@@ -105,10 +108,14 @@ void write_to_file(GraphStream *stream, DynamicErdosGenerator &gen) {
 }
 
 void DynamicErdosGenerator::to_binary_file(std::string file_name) {
+  edge_idx = 0;
   BinaryFileStream output_stream(file_name, false);
+  write_to_file(&output_stream, *this);
 }
 void DynamicErdosGenerator::to_ascii_file(std::string file_name) {
+  edge_idx = 0;
   AsciiFileStream output_stream(file_name, true);
+  write_to_file(&output_stream, *this);
 }
 void DynamicErdosGenerator::write_cumulative_file(std::string file_name) {
   AsciiFileStream output_stream(file_name, false);

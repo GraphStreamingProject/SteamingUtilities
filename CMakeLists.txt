@@ -92,5 +92,15 @@ if (BUILD_EXE)
     tools/run_erdos_gen.cpp)
   add_dependencies(run_erdos_gen StreamingUtilities)
   target_link_libraries(run_erdos_gen PRIVATE StreamingUtilities)
+
+  add_executable(stream_file_converter
+    tools/stream_file_converter.cpp)
+  add_dependencies(stream_file_converter StreamingUtilities)
+  target_link_libraries(stream_file_converter PRIVATE StreamingUtilities)
+
+  add_executable(stream_validator
+    tools/stream_validator.cpp)
+  add_dependencies(stream_validator StreamingUtilities)
+  target_link_libraries(stream_validator PRIVATE StreamingUtilities)
 endif()
 
