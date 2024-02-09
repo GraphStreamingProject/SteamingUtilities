@@ -75,16 +75,22 @@ add_subdirectory(
 set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 
 add_library(StreamingUtilities
-  src/static_erdos_generator.cpp)
+  src/static_erdos_generator.cpp
+  src/dynamic_erdos_generator.cpp)
 add_dependencies(StreamingUtilities xxhash GraphZeppelinCommon)
 target_link_libraries(StreamingUtilities PUBLIC xxhash GraphZeppelinCommon)
 target_include_directories(StreamingUtilities PUBLIC include/)
 target_compile_definitions(StreamingUtilities PUBLIC XXH_INLINE_ALL)
 
 if (BUILD_EXE)
-  add_executable(permuted_set
+  add_executable(run_permuted_set
     tools/run_permuted_set.cpp)
-  add_dependencies(permuted_set StreamingUtilities)
-  target_link_libraries(permuted_set PRIVATE StreamingUtilities)
+  add_dependencies(run_permuted_set StreamingUtilities)
+  target_link_libraries(run_permuted_set PRIVATE StreamingUtilities)
+
+  add_executable(run_erdos_gen
+    tools/run_erdos_gen.cpp)
+  add_dependencies(run_erdos_gen StreamingUtilities)
+  target_link_libraries(run_erdos_gen PRIVATE StreamingUtilities)
 endif()
 

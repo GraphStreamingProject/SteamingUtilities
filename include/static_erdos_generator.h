@@ -15,7 +15,7 @@ class StaticErdosGenerator {
   edge_id_t skip = 0;
   size_t v_bits;
  public:
-  StaticErdosGenerator(node_id_t num_vertices, double density, size_t seed);
+  StaticErdosGenerator(size_t seed, node_id_t num_vertices, double density);
 
   // these functions write all the stream edges to a file
   void to_binary_file(std::string file_name);

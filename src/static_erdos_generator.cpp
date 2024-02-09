@@ -2,12 +2,12 @@
 #include "ascii_file_stream.h"
 #include "binary_file_stream.h"
 
-StaticErdosGenerator::StaticErdosGenerator(node_id_t num_vertices, double density, size_t seed)
+StaticErdosGenerator::StaticErdosGenerator(size_t seed, node_id_t num_vertices, double density)
     : num_vertices(num_vertices),
       density(density),
       seed(seed),
       total_edges(size_t(num_vertices) * (size_t(num_vertices) - 1) / 2 * density),
-      permute(num_vertices * num_vertices - 1, seed) {
+      permute(num_vertices * num_vertices / 2, seed) {
 
   if (log2(num_vertices) - size_t(log2(num_vertices)) != 0) {
     throw StreamException("StaticErdosGenerator: Number of vertices must be a power of 2!");
@@ -28,13 +28,16 @@ void write_to_file(GraphStream *stream, StaticErdosGenerator &gen) {
       buffer_size = 0;
     }
   }
+  if (buffer_size > 0) {
+    stream->write_updates(upds, buffer_size);
+  }
 }
 
 void StaticErdosGenerator::to_binary_file(std::string file_name) {
   BinaryFileStream output_stream(file_name, false);
 }
 void StaticErdosGenerator::to_ascii_file(std::string file_name) {
-  AsciiFileStream output_stream(file_name, false);
+  AsciiFileStream output_stream(file_name, true);
 }
 
 static Edge extract_edge(size_t v_bits, size_t packed_edge) {
