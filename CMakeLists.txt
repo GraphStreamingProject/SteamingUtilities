@@ -93,6 +93,11 @@ if (BUILD_EXE)
   add_dependencies(run_erdos_gen StreamingUtilities)
   target_link_libraries(run_erdos_gen PRIVATE StreamingUtilities)
 
+  add_executable(generate_single_cut_stream
+    tools/single_cut_stream_generator.cpp)
+  target_link_libraries(generate_single_cut_stream PUBLIC GraphZeppelinCommon)
+  target_include_directories(generate_single_cut_stream PUBLIC include/)
+
   add_executable(stream_file_converter
     tools/stream_file_converter.cpp)
   add_dependencies(stream_file_converter StreamingUtilities)
