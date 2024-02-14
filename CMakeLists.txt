@@ -76,7 +76,8 @@ set(BUILD_SHARED_LIBS "${SAVED_BUILD_SHARED_LIBS}" CACHE BOOL "" FORCE)
 
 add_library(StreamingUtilities
   src/static_erdos_generator.cpp
-  src/dynamic_erdos_generator.cpp)
+  src/dynamic_erdos_generator.cpp
+  src/single_cut_generator.cpp)
 add_dependencies(StreamingUtilities xxhash GraphZeppelinCommon)
 target_link_libraries(StreamingUtilities PUBLIC xxhash GraphZeppelinCommon)
 target_include_directories(StreamingUtilities PUBLIC include/)
@@ -93,10 +94,10 @@ if (BUILD_EXE)
   add_dependencies(run_erdos_gen StreamingUtilities)
   target_link_libraries(run_erdos_gen PRIVATE StreamingUtilities)
 
-  add_executable(generate_single_cut_stream
-    tools/single_cut_stream_generator.cpp)
-  target_link_libraries(generate_single_cut_stream PUBLIC GraphZeppelinCommon)
-  target_include_directories(generate_single_cut_stream PUBLIC include/)
+  add_executable(run_single_cut_gen
+    tools/run_single_cut_gen.cpp)
+  add_dependencies(run_single_cut_gen StreamingUtilities)
+  target_link_libraries(run_single_cut_gen PRIVATE StreamingUtilities)
 
   add_executable(stream_file_converter
     tools/stream_file_converter.cpp)
