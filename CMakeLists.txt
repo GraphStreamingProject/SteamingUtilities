@@ -108,5 +108,11 @@ if (BUILD_EXE)
     tools/stream_validator.cpp)
   add_dependencies(stream_validator StreamingUtilities)
   target_link_libraries(stream_validator PRIVATE StreamingUtilities)
+
+  add_executable(binary_to_static
+      tools/to_static.cpp)
+  add_dependencies(binary_to_static StreamingUtilities)
+  target_link_libraries(binary_to_static PUBLIC StreamingUtilities)
+
 endif()
 
