@@ -1,105 +1,183 @@
 #include <errno.h>
 #include <graph_zeppelin_common.h>
 #include <string.h>
+#include "ascii_file_stream.h"
+#include "binary_file_stream.h"
 
 #include <fstream>
 #include <iostream>
 #include <vector>
 
-// For the moment this code just converts between an ascii stream and a binary stream
-// TODO: Add an option to convert from a binary stream to an ascii stream
-// TODO: Use the ascii_stream and binary_stream classes to do this
+const std::string USAGE = "\n\
+This program converts between multiple graph stream formats.\n\
+USAGE:\n\
+  Arguments: input_file input_type output_file output_type [--to_static] [--verbose]\n\
+     input_file: The location of the file stream to convert\n\
+     input_type: The type of the input file [see types below]\n\
+    output_file: Where to place the converted output stream\n\
+    output_type: The type of the output file [see types below]\n\
+      to_static: [OPTIONAL] Output only the edge list for the graph state at end of input stream\n\
+        verbose: [OPTIONAL] Be verbose with progress and warning messages\n\
+  Output and input types must be one of the following\n\
+          ascii_stream: An ascii file stream that states edge update type (insert vs delete).\n\
+   notype_ascii_stream: An ascii file stream that contains only edge source and destination.\n\
+         binary_stream: A binary file stream.\n\
+  Additionally, if optional arguments are specified they must come last.";
+
+// create a stream based on parsed information
+GraphStream *create_stream(std::string file_name, bool ascii, bool type, bool read) {
+  GraphStream *ret;
+  if (ascii) {
+    ret = (GraphStream *) new AsciiFileStream(file_name, type);
+  } else { // binary_stream
+    ret = (GraphStream *) new BinaryFileStream(file_name, read);
+  }
+  return ret;
+}
+
+std::string print_type(UpdateType type) {
+  if (type == INSERT) return "INSERT";
+  if (type == DELETE) return "DELETE";
+  if (type == BREAKPOINT) return "BREAKPOINT";
+  return "UNKNOWN";
+}
 
 int main(int argc, char **argv) {
-  if (argc < 3 || argc > 5) {
-    std::cout << "Incorrect number of arguments. Expected [2-4] but got "
+  if (argc < 5 || argc > 7) {
+    std::cerr << "ERROR: Incorrect number of arguments. Expected [4-6] but got "
               << argc - 1 << std::endl;
-    std::cout << "Arguments are: ascii_stream out_file_name [--update_type] [--verbose]"
-              << std::endl;
-    std::cout << "ascii_stream:  The file to parse into binary format" << std::endl;
-    std::cout << "out_file_name: Where the binary stream will be written" << std::endl;
-    std::cout << "--update_type: If present then ascii stream indicates insertions vs deletions"
-              << std::endl;
-    std::cout
-        << "--silent:      If present then no warnings are printed when stream corrections are made"
-        << std::endl;
+    std::cerr << USAGE << std::endl;
     exit(EXIT_FAILURE);
   }
 
-  std::ifstream txt_file(argv[1]);
-  if (!txt_file) {
-    std::cerr << "ERROR: could not open input file!" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  std::ofstream out_file(argv[2], std::ios_base::binary | std::ios_base::out);
-  if (!out_file) {
-    std::cerr << "ERROR: could not open output file! " << argv[2] << ": " << strerror(errno)
-              << std::endl;
-    exit(EXIT_FAILURE);
-  }
+  std::string in_file_name = argv[1];
+  std::string in_file_type = argv[2];
 
-  bool update_type = false;
-  bool silent = false;
-  for (int i = 3; i < argc; i++) {
-    if (std::string(argv[i]) == "--update_type")
-      update_type = true;
-    else if (std::string(argv[i]) == "--silent") {
-      silent = true;
+  if (in_file_type != "notype_ascii_stream" && in_file_type != "ascii_stream" &&
+      in_file_type != "binary_stream") {
+    std::cerr << "ERROR: Did not recognize input_file_type: " << in_file_type << std::endl;
+    std::cerr << USAGE << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  GraphStream *input = create_stream(in_file_name, in_file_type != "binary_stream",
+                                     in_file_type != "notype_ascii_stream", true);
+
+  std::string out_file_name = argv[3];
+  std::string out_file_type = argv[4];
+
+  if (out_file_type != "notype_ascii_stream" && out_file_type != "ascii_stream" &&
+      out_file_type != "binary_stream") {
+    std::cerr << "ERROR: Did not recognize output_file_type: " << out_file_type << std::endl;
+    std::cerr << USAGE << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  GraphStream *output = create_stream(out_file_name, out_file_type != "binary_stream",
+                                      out_file_type != "notype_ascii_stream", false);
+
+  bool to_static = false;
+  bool verbose = false;
+  for (int i = 5; i < argc; i++) {
+    if (std::string(argv[i]) == "--to_static")
+      to_static = true;
+    else if (std::string(argv[i]) == "--verbose") {
+      verbose = true;
     } else {
       std::cerr << "Did not recognize argument: " << argv[i]
-                << " Expected '--update_type' or '--silent'";
-      return EXIT_FAILURE;
+                << " Expected '--to_static' or '--verbose'";
+      exit(EXIT_FAILURE);
     }
   }
 
-  node_id_t num_nodes;
-  edge_id_t num_edges;
+  node_id_t num_nodes = input->vertices();
+  edge_id_t num_edges = input->edges();
 
-  txt_file >> num_nodes >> num_edges;
+  std::cout << "Parsed input stream header:" << std::endl;
+  std::cout << "   Number of vertices: " << num_nodes << std::endl;
+  std::cout << "    Number of updates: " << num_edges << std::endl;
+  std::cout << "  Input stream format: " << in_file_type << std::endl;
 
-  std::cout << "Parsed ascii stream header. . ." << std::endl;
-  std::cout << "Number of nodes:   " << num_nodes << std::endl;
-  std::cout << "Number of updates: " << num_edges << std::endl;
-  if (update_type)
-    std::cout << "Assuming that update format is: upd_type src dst" << std::endl;
-  else
-    std::cout << "Assuming that update format is: src dst" << std::endl;
-
-  out_file.write((char *)&num_nodes, sizeof(num_nodes));
-  out_file.write((char *)&num_edges, sizeof(num_edges));
+  output->write_header(num_nodes, num_edges);
 
   std::vector<std::vector<bool>> adj_mat(num_nodes);
   for (node_id_t i = 0; i < num_nodes; ++i) adj_mat[i] = std::vector<bool>(num_nodes - i);
 
-  bool u;
-  node_id_t src;
-  node_id_t dst;
+  constexpr size_t buf_capacity = 1024;
+  GraphStreamUpdate buf[buf_capacity];
+  size_t true_edges = 0;
 
-  while (num_edges--) {
-    u = false;
-    if (update_type)
-      txt_file >> u >> src >> dst;
-    else
-      txt_file >> src >> dst;
+  bool processing = true;
+  while (processing) {
+    size_t read = input->get_update_buffer(buf, buf_capacity);
+    size_t ignored = 0;
+    for (size_t i = 0; i < read; i++) {
+      GraphStreamUpdate upd = buf[i];
+      UpdateType type = (UpdateType) upd.type;
+      Edge e = upd.edge;
 
-    if (src > dst) {
-      if (!silent && u != adj_mat[dst][src - dst]) {
-        std::cout << "WARNING: update " << u << " " << src << " " << dst;
-        std::cout << " is double insert or delete before insert. Correcting." << std::endl;
+      if (type == BREAKPOINT) {
+        processing = false;
+        --read; // don't output the breakpoint!
+        break;
       }
-      u = adj_mat[dst][src - dst];
-      adj_mat[dst][src - dst] = !adj_mat[dst][src - dst];
-    } else {
-      if (!silent && u != adj_mat[src][dst - src]) {
-        std::cout << "WARNING: update " << u << " " << src << " " << dst;
-        std::cout << " is double insert or delete before insert. Correcting." << std::endl;
+
+      // process the update
+      node_id_t src = std::min(e.src, e.dst);
+      node_id_t dst = std::max(e.src, e.dst);
+
+      if (src == dst) {
+        if (verbose)
+          std::cerr << "WARNING: Dropping self loop edge " << src << ", " << dst << std::endl;
+
+        ++ignored;
+        continue;
       }
-      u = adj_mat[src][dst - src];
-      adj_mat[src][dst - src] = !adj_mat[src][dst - src];
+
+      if (verbose && type != adj_mat[src][dst - src - 1]) {
+        std::cout << "WARNING: update " << print_type(type) << " " << e.src << " " << e.dst;
+        std::cout << " is double insert or delete before insert." << std::endl;
+      }
+
+      buf[i].type = adj_mat[src][dst - src - 1];
+      adj_mat[src][dst - src - 1] = !adj_mat[src][dst - src - 1];
+
+      // shift past ignored if necessary
+      buf[i - ignored] = buf[i];
     }
 
-    out_file.write((char *)&u, sizeof(u));
-    out_file.write((char *)&src, sizeof(src));
-    out_file.write((char *)&dst, sizeof(dst));
+    // copy buffer to output stream
+    if (!to_static)
+      output->write_updates(buf, read - ignored);
+
+    true_edges += read - ignored;
+
+    if (true_edges % (buf_capacity * 10000) == 0) {
+      std::cout << true_edges << "\r          "; fflush(stdout);
+    }
   }
+
+  if (to_static) {
+    true_edges = 0; // only count edges in final graph in static stream
+    size_t buf_size = 0;
+    for (node_id_t src = 0; src < num_nodes; src++) {
+      for (node_id_t dst = 0; dst < adj_mat[src].size(); dst++) {
+        if (adj_mat[src][dst]) {
+          buf[buf_size++] = {INSERT, {src, src + dst + 1}};
+          ++true_edges;
+          if (buf_size >= buf_capacity) {
+            output->write_updates(buf, buf_size);
+            buf_size = 0;
+          }
+        }
+      }
+    }
+    if (buf_size > 0)
+      output->write_updates(buf, buf_size);
+  }
+
+  output->write_header(num_nodes, true_edges);
+
+  delete input;
+  delete output;
+
+  std::cout << "Done                  " << std::endl;
 }
