@@ -11,25 +11,27 @@
 const std::string USAGE = "\n\
 This program converts between multiple graph stream formats.\n\
 USAGE:\n\
-  Arguments: input_file input_type output_file output_type [--to_static] [--verbose]\n\
-     input_file: The location of the file stream to convert\n\
-     input_type: The type of the input file [see types below]\n\
+  Arguments: input_file input_type output_file output_type [--to_static] [--silent]\n\
+    input_file:  The location of the file stream to convert\n\
+    input_type:  The type of the input file [see types below]\n\
     output_file: Where to place the converted output stream\n\
     output_type: The type of the output file [see types below]\n\
-      to_static: [OPTIONAL] Output only the edge list for the graph state at end of input stream\n\
-        verbose: [OPTIONAL] Be verbose with progress and warning messages\n\
+    to_static:   [OPTIONAL] Output only the edge list for the graph state at end of input stream\n\
+    silent:      [OPTIONAL] Do not print warnings\n\
+\n\
   Output and input types must be one of the following\n\
-          ascii_stream: An ascii file stream that states edge update type (insert vs delete).\n\
-   notype_ascii_stream: An ascii file stream that contains only edge source and destination.\n\
-         binary_stream: A binary file stream.\n\
-  Additionally, if optional arguments are specified they must come last.";
+    ascii_stream:        An ascii file stream that states edge update type (insert vs delete).\n\
+    notype_ascii_stream: An ascii file stream that contains only edge source and destination.\n\
+    binary_stream:       A binary file stream.\n\
+\n\
+  Additionally, optional arguments must come last.";
 
 // create a stream based on parsed information
 GraphStream *create_stream(std::string file_name, bool ascii, bool type, bool read) {
   GraphStream *ret;
   if (ascii) {
     ret = (GraphStream *) new AsciiFileStream(file_name, type);
-  } else { // binary_stream
+  } else {
     ret = (GraphStream *) new BinaryFileStream(file_name, read);
   }
   return ret;
@@ -75,15 +77,15 @@ int main(int argc, char **argv) {
                                       out_file_type != "notype_ascii_stream", false);
 
   bool to_static = false;
-  bool verbose = false;
+  bool silent = false;
   for (int i = 5; i < argc; i++) {
     if (std::string(argv[i]) == "--to_static")
       to_static = true;
-    else if (std::string(argv[i]) == "--verbose") {
-      verbose = true;
+    else if (std::string(argv[i]) == "--silent") {
+      silent = true;
     } else {
       std::cerr << "Did not recognize argument: " << argv[i]
-                << " Expected '--to_static' or '--verbose'";
+                << " Expected '--to_static' or '--silent'" << std::endl;
       exit(EXIT_FAILURE);
     }
   }
@@ -92,8 +94,8 @@ int main(int argc, char **argv) {
   edge_id_t num_edges = input->edges();
 
   std::cout << "Parsed input stream header:" << std::endl;
-  std::cout << "   Number of vertices: " << num_nodes << std::endl;
-  std::cout << "    Number of updates: " << num_edges << std::endl;
+  std::cout << "  Number of vertices:  " << num_nodes << std::endl;
+  std::cout << "  Number of updates:   " << num_edges << std::endl;
   std::cout << "  Input stream format: " << in_file_type << std::endl;
 
   output->write_header(num_nodes, num_edges);
@@ -125,14 +127,14 @@ int main(int argc, char **argv) {
       node_id_t dst = std::max(e.src, e.dst);
 
       if (src == dst) {
-        if (verbose)
+        if (!silent)
           std::cerr << "WARNING: Dropping self loop edge " << src << ", " << dst << std::endl;
 
         ++ignored;
         continue;
       }
 
-      if (verbose && type != adj_mat[src][dst - src - 1]) {
+      if (!silent && type != adj_mat[src][dst - src - 1]) {
         std::cout << "WARNING: update " << print_type(type) << " " << e.src << " " << e.dst;
         std::cout << " is double insert or delete before insert." << std::endl;
       }
@@ -151,7 +153,7 @@ int main(int argc, char **argv) {
     true_edges += read - ignored;
 
     if (true_edges % (buf_capacity * 10000) == 0) {
-      std::cout << true_edges << "\r          "; fflush(stdout);
+      std::cout << "Processed: " << true_edges << " edges           \r"; fflush(stdout);
     }
   }
 
@@ -175,9 +177,8 @@ int main(int argc, char **argv) {
   }
 
   output->write_header(num_nodes, true_edges);
+  std::cout << "Done                            " << std::endl;
 
   delete input;
   delete output;
-
-  std::cout << "Done                  " << std::endl;
 }
