@@ -4,7 +4,6 @@
 #include "ascii_file_stream.h"
 #include "binary_file_stream.h"
 
-#include <fstream>
 #include <iostream>
 #include <vector>
 
@@ -135,8 +134,8 @@ int main(int argc, char **argv) {
       }
 
       if (!silent && type != adj_mat[src][dst - src - 1]) {
-        std::cout << "WARNING: update " << print_type(type) << " " << e.src << " " << e.dst;
-        std::cout << " is double insert or delete before insert." << std::endl;
+        std::cerr << "WARNING: update " << print_type(type) << " " << e.src << " " << e.dst;
+        std::cerr << " is double insert or delete before insert." << std::endl;
       }
 
       buf[i].type = adj_mat[src][dst - src - 1];
@@ -162,9 +161,14 @@ int main(int argc, char **argv) {
     size_t buf_size = 0;
     for (node_id_t src = 0; src < num_nodes; src++) {
       for (node_id_t dst = 0; dst < adj_mat[src].size(); dst++) {
+        true_edges += adj_mat[src][dst];
+      }
+    }
+    output->write_header(num_nodes, true_edges);
+    for (node_id_t src = 0; src < num_nodes; src++) {
+      for (node_id_t dst = 0; dst < adj_mat[src].size(); dst++) {
         if (adj_mat[src][dst]) {
           buf[buf_size++] = {INSERT, {src, src + dst + 1}};
-          ++true_edges;
           if (buf_size >= buf_capacity) {
             output->write_updates(buf, buf_size);
             buf_size = 0;
@@ -174,9 +178,11 @@ int main(int argc, char **argv) {
     }
     if (buf_size > 0)
       output->write_updates(buf, buf_size);
+  } else {
+    // update header to reflect true edges
+    output->write_header(num_nodes, true_edges);
   }
 
-  output->write_header(num_nodes, true_edges);
   std::cout << "Done                            " << std::endl;
 
   delete input;

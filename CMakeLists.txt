@@ -16,7 +16,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE
       STRING "Choose the type of build." FORCE)
 endif()
-message(STATUS "GraphZeppelin Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "StreamingUtilities Build Type: ${CMAKE_BUILD_TYPE}")
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   message(STATUS "Adding GNU compiler flags")
@@ -40,7 +40,7 @@ if (not_root AND "${CMAKE_BUILD_TYPE}" STREQUAL "Release")
   set(BUILD_EXE OFF)
 else()
   set(BUILD_EXE ON)
-  message (STATUS "GraphZeppelin building executables")
+  message (STATUS "StreamingUtilities building executables")
 endif()
 
 # Common types and components
@@ -102,5 +102,10 @@ if (BUILD_EXE)
     tools/stream_validator.cpp)
   add_dependencies(stream_validator StreamingUtilities)
   target_link_libraries(stream_validator PRIVATE StreamingUtilities)
+
+  add_executable(streamifier
+    tools/streamifier.cpp)
+  add_dependencies(streamifier StreamingUtilities)
+  target_link_libraries(streamifier PRIVATE StreamingUtilities)
 endif()
 

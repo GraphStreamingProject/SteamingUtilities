@@ -14,30 +14,32 @@ class BinaryFileStream : public GraphStream {
  public:
   /**
    * Open a BinaryFileStream
-   * @param file_name   Name of the stream file
+   * @param file_name       Name of the stream file
+   * @param open_read_only  If true, indicates that we are only going to read this stream. Write
+   *                        operations will fail. If false, we may both read and write.
    */
   BinaryFileStream(std::string file_name, bool open_read_only = true)
       : read_only(open_read_only), file_name(file_name) {
     if (read_only)
       stream_fd = open(file_name.c_str(), O_RDONLY, S_IRUSR);
     else
-      stream_fd = open(file_name.c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+      stream_fd = open(file_name.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 
     if (!stream_fd)
       throw StreamException("BinaryFileStream: Could not open stream file " + file_name +
                             ". Does it exist?");
 
     // read header from the input file
-    if (read_only) {
-      if (read(stream_fd, (char*)&num_vertices, sizeof(num_vertices)) != sizeof(num_vertices))
-        throw StreamException("BinaryFileStream: Could not read number of nodes");
-      if (read(stream_fd, (char*)&num_edges, sizeof(num_edges)) != sizeof(num_edges))
-        throw StreamException("BinaryFileStream: Could not read number of edges");
+    if (read(stream_fd, (char*)&num_vertices, sizeof(num_vertices)) != sizeof(num_vertices) &&
+        open_read_only)
+      throw StreamException("BinaryFileStream: Could not read number of nodes");
+    if (read(stream_fd, (char*)&num_edges, sizeof(num_edges)) != sizeof(num_edges) &&
+        open_read_only)
+      throw StreamException("BinaryFileStream: Could not read number of edges");
 
-      end_of_file = (num_edges * edge_size) + header_size;
-      stream_off = header_size;
-      set_break_point(-1);
-    }
+    end_of_file = (num_edges * edge_size) + header_size;
+    stream_off = header_size;
+    set_break_point(-1);
   }
 
   ~BinaryFileStream() {
@@ -116,7 +118,13 @@ class BinaryFileStream : public GraphStream {
   }
 
   // seek to a position in the stream
-  inline void seek(edge_id_t edge_idx) { stream_off = edge_idx * edge_size + header_size; }
+  inline void seek(edge_id_t edge_idx) {
+    stream_off = edge_idx * edge_size + header_size;
+    if (lseek(stream_fd, stream_off, SEEK_SET) == -1) {
+      perror("BinaryFileStream::write_updates");
+      throw StreamException("BinaryFileStream: Could not perform seek");
+    }
+  }
 
   inline bool set_break_point(edge_id_t break_idx) {
     edge_id_t byte_index = END_OF_STREAM;
