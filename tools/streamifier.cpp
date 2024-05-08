@@ -239,6 +239,15 @@ void add_updates_for_checkpoint(size_t seed, BinaryFileStream *input, BinaryFile
     // identify the correct type of the edge and place it into the output stream
     node_id_t src = std::min(edge.src, edge.dst);
     node_id_t local_dst = std::max(edge.src, edge.dst) - src - 1;
+
+    // perform some quick error checking
+    if (edge.src >= input->vertices() || edge.dst >= input->vertices() || edge.src == edge.dst) {
+      std::cerr << "ERROR: Bad edge encountered (" << edge.src << ", " << edge.dst << ")"
+                << std::endl;
+      exit(EXIT_FAILURE);
+    }
+
+
     bool present = adj_mat[src][local_dst];
     adj_mat[src][local_dst] = !adj_mat[src][local_dst];
     output_updates[output_pos++] = {present, edge};

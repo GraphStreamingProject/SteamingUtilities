@@ -7,8 +7,10 @@ std::string type_string(uint8_t type) {
     return "INSERT";
   else if (type == DELETE)
     return "DELETE";
-  else
+  else if (type == BREAKPOINT)
     return "BREAKPOINT";
+  else
+    return "UNKNOWN";
 }
 
 void err_edge(Edge edge, UpdateType u, size_t e) {
