@@ -5,6 +5,7 @@
 #include <iostream>
 #include <random>
 #include <vector>
+#include <queue>
 #include <cstdlib>
 #include <chrono>
 #include <iomanip>
@@ -23,7 +24,7 @@ not be static, but this tool can only add additional dynamic edges. To remove ex
 edges make the graph static using the 'stream_file_converter' tool.\n\
 USAGE:\n\
   Arguments: input_file output_file density[+] [--extra percent] [--preprocessed]\n\
-             [--shuffle] [--seed seed]\n\
+             [--shuffle] [--fixed-forest] [--seed seed]\n\
     input_file:    The location of the file stream to convert. MUST be a BinaryFileStream.\n\
     output_file:   Where to place the streamified BinaryFileStream.\n\
     density:       One or more density checkpoints, the stream will move from one density\n\
@@ -39,6 +40,8 @@ USAGE:\n\
                    input stream has already been loaded by the system. That is, we assume the\n\
                    output stream begins after a density checkpoint of 100.\n\
     shuffle:       [OPTIONAL] If this flag is present, perform streamifying upon shuffled input.\n\
+    fixed-forest:  [OPTIONAL] This creates a stream with a fixed spanning forest of the input\n\
+                   graph which will never be deleted throughout the rest of the stream.\n\
     seed seed:     [OPTIONAL] Define the seed to random number generation. If not defined one is\n\
                    chosen randomly.\n\
 \n\
@@ -127,6 +130,82 @@ void shuffle_stream(size_t seed, std::string temp_file_name) {
   }
   delete upd_buf1;
   delete upd_buf2;
+}
+
+// take a binary stream and place the shuffled version in a file of a given name
+void remove_edges_from_stream(BinaryFileStream *input, std::string temp_file_name, std::vector<Edge> edges) {
+  std::cout << "Removing forest edges from stream..." << std::endl;
+  BinaryFileStream filtered_stream(temp_file_name, false);
+
+  edge_id_t num_edges = input->edges();
+  std::cout << "Original stream edges = " << num_edges << std::endl;
+  std::cout << "Filtered stream edges = " << num_edges-edges.size() << std::endl;
+
+  edge_id_t buffer_size = std::min(edge_id_t(1000000), num_edges);
+  GraphStreamUpdate *upd_buf1 = new GraphStreamUpdate[buffer_size];
+  GraphStreamUpdate *upd_buf2 = new GraphStreamUpdate[buffer_size];
+
+  filtered_stream.write_header(input->vertices(), num_edges-edges.size());
+
+  for (edge_id_t e = 0; e < num_edges; e += buffer_size) {
+    // read and filter updates at beginning of stream
+    input->seek(e);
+    size_t read = input->get_update_buffer(upd_buf1, buffer_size);
+    
+    // filter the edges out in this batch
+    edge_id_t output_count = 0;
+    for (size_t i = 0; i < read; i++) {
+      if (std::find(edges.begin(), edges.end(), upd_buf1[i].edge) == edges.end()) {
+        upd_buf2[output_count++] = upd_buf1[i];
+      }
+    }
+    filtered_stream.write_updates(upd_buf2, output_count);
+  }
+  delete upd_buf1;
+  delete upd_buf2;
+}
+
+std::vector<Edge> get_spanning_forest(BinaryFileStream *input) {
+  node_id_t V = input->vertices();
+  edge_id_t E = input->edges();
+
+  // Convert the edge list into an adjacency matrix format
+  std::vector<std::vector<bool>> adj_mat(V, std::vector<bool>(V, 0));
+  edge_id_t buffer_size = std::min(edge_id_t(1000000), E);
+  GraphStreamUpdate *upd_buf = new GraphStreamUpdate[buffer_size];
+  for (edge_id_t e = 0; e < E; e += buffer_size) {
+    input->seek(e);
+    size_t read = input->get_update_buffer(upd_buf, buffer_size);
+    for (size_t i = 0; i < read; i++) {
+        Edge edge = upd_buf[i].edge;
+        adj_mat[edge.src][edge.dst] = 1;
+        adj_mat[edge.dst][edge.src] = 1;
+    }
+  }
+
+  // BFS to find spanning forest of the input graph
+  std::vector<bool> visited(V, false);
+  std::vector<Edge> forest;
+  for (node_id_t v = 0; v < V; ++v) {
+    if (!visited[v]) {
+      std::queue<node_id_t> q;
+      q.push(v);
+      visited[v] = true;
+      while (!q.empty()) {
+        node_id_t u = q.front();
+        q.pop();
+        for (node_id_t i = 0; i < V; ++i) {
+          if (adj_mat[u][i] && !visited[i]) {
+              forest.push_back((Edge){u,i});
+              q.push(i);
+              visited[i] = true;
+          }
+        }
+      }
+    }
+  }
+
+  return forest;
 }
 
 edge_id_t calc_streamy_edges(edge_id_t static_edges, std::vector<double> &density_checkpoints,
@@ -286,6 +365,7 @@ int main(int argc, char **argv) {
   double extra_percent = 0;
   bool preprocessed = false;
   bool shuffle = false;
+  bool fixed_forest = false;
   size_t seed = generate_seed();
   std::vector<double> density_checkpoints;
 
@@ -313,6 +393,8 @@ int main(int argc, char **argv) {
       preprocessed = true;
     } else if (arg_str == "--shuffle") {
       shuffle = true;
+    } else if (arg_str == "--fixed-forest") {
+      fixed_forest = true;
     } else if (arg_str == "--seed") {
       if (arg + 1 > argc) {
         std::cerr << "ERROR: --seed requires the 'seed' argument!" << std::endl;
@@ -348,6 +430,7 @@ int main(int argc, char **argv) {
   std::cout << "Output file name:     " << out_file_name << std::endl;
   std::cout << "Seed:                 " << seed << std::endl;
   std::cout << "Shuffle input:        " << (shuffle ? "True" : "False") << std::endl;
+  std::cout << "Fixed forest input:   " << (fixed_forest ? "True" : "False") << std::endl;
   std::cout << "Begins preprocessed:  " << (preprocessed ? "True" : "False") << std::endl;
   std::cout << "Extra updates factor: " << extra_percent << std::endl;
   std::cout << "Density checkpoints: ";
@@ -361,28 +444,55 @@ int main(int argc, char **argv) {
 
   // if we need a temporary file, this is it
   std::string output_dir = get_file_directory(out_file_name);
-  std::string temp_file_name = output_dir + "/temp_shuf_stream";
+  std::string temp_file_name1 = output_dir + "/temp_shuf_stream";
+  std::string temp_file_name2 = output_dir + "/temp_filt_stream";
 
   if (shuffle) {
-    std::cout << "Shuffling in temporary stream file: " << temp_file_name << std::endl;
-    std::cout << "Copy stream..." << std::endl;
+    std::cout << "Shuffling in temporary stream file: " << temp_file_name1 << std::endl;
     // copy the input stream to the temporary file
-    copy_file(in_file_name, temp_file_name);
+    std::cout << "Copy stream..." << std::endl;
+    copy_file(in_file_name, temp_file_name1);
 
     // shuffle the stream
-    shuffle_stream(seed, temp_file_name);
+    shuffle_stream(seed, temp_file_name1);
 
     // set input stream to the generated temporary file
     delete input;
-    input = new BinaryFileStream(temp_file_name, true);
+    input = new BinaryFileStream(temp_file_name1, true);
+  }
+
+  std::vector<Edge> spanning_forest;
+
+  if (fixed_forest) {
+    // get a spanning forest that will be inserted first
+    spanning_forest = get_spanning_forest(input);
+
+    std::cout << "Filtering in temporary stream file: " << temp_file_name2 << std::endl;
+
+    // filter the edges out
+    remove_edges_from_stream(input, temp_file_name2, spanning_forest);
+
+    // set input stream to the generated temporary file
+    delete input;
+    input = new BinaryFileStream(temp_file_name2, true);
   }
 
   // calculate how many total edges the streamified stream will have
   size_t streamy_edges =
-      calc_streamy_edges(input->edges(), density_checkpoints, extra_percent, preprocessed);
+      calc_streamy_edges(input->edges(), density_checkpoints, extra_percent, preprocessed) + spanning_forest.size();
 
   // write the header to the output stream
   output->write_header(input->vertices(), streamy_edges);
+
+  // Write the initial spanning forest to the output stream if there is one
+  if (fixed_forest) {
+    GraphStreamUpdate updates[spanning_forest.size()];
+    for (size_t i = 0; i < spanning_forest.size(); i++) {
+      updates[i].type = INSERT;
+      updates[i].edge = spanning_forest[i];
+    }
+    output->write_updates(updates, spanning_forest.size());
+  }
 
   // create an adjacency matrix for storing the state of the graph
   std::vector<std::vector<bool>> adj_mat(input->vertices());
@@ -400,6 +510,11 @@ int main(int argc, char **argv) {
 
   if (shuffle) {
     // delete the temporary file
-    std::remove(temp_file_name.c_str());
+    std::remove(temp_file_name1.c_str());
+  }
+
+  if (fixed_forest) {
+    // delete the temporary file
+    std::remove(temp_file_name2.c_str());
   }
 }
