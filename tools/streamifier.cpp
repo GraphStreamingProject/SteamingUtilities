@@ -147,6 +147,7 @@ void remove_edges_from_stream(BinaryFileStream *input, std::string temp_file_nam
 
   filtered_stream.write_header(input->vertices(), num_edges-edges.size());
 
+  edge_id_t written = 0;
   for (edge_id_t e = 0; e < num_edges; e += buffer_size) {
     // read and filter updates at beginning of stream
     input->seek(e);
@@ -155,12 +156,22 @@ void remove_edges_from_stream(BinaryFileStream *input, std::string temp_file_nam
     // filter the edges out in this batch
     edge_id_t output_count = 0;
     for (size_t i = 0; i < read; i++) {
-      if (std::find(edges.begin(), edges.end(), upd_buf1[i].edge) == edges.end()) {
+      bool found = false;
+      for (size_t j = 0; j < edges.size(); j++) {
+        Edge e1 = edges[j];
+        Edge e2 = upd_buf1[i].edge;
+        if ((e1.src == e2.src && e1.dst == e2.dst) || (e1.src == e2.dst && e1.dst == e2.src)) {
+          found = true;
+        }
+      }
+      if (!found) {
         upd_buf2[output_count++] = upd_buf1[i];
       }
     }
     filtered_stream.write_updates(upd_buf2, output_count);
+    written += output_count;
   }
+  std::cout << "Wrote " << written << " updates to " << temp_file_name << std::endl;
   delete upd_buf1;
   delete upd_buf2;
 }
@@ -444,8 +455,8 @@ int main(int argc, char **argv) {
 
   // if we need a temporary file, this is it
   std::string output_dir = get_file_directory(out_file_name);
-  std::string temp_file_name1 = output_dir + "/temp_shuf_stream";
-  std::string temp_file_name2 = output_dir + "/temp_filt_stream";
+  std::string temp_file_name1 = "./temp_shuf_stream";
+  std::string temp_file_name2 = "./temp_filt_stream";
 
   if (shuffle) {
     std::cout << "Shuffling in temporary stream file: " << temp_file_name1 << std::endl;
