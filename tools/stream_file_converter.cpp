@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <graph_zeppelin_common.h>
 #include <string.h>
+#include <unordered_map>
 #include "ascii_file_stream.h"
 #include "binary_file_stream.h"
 
@@ -23,7 +24,10 @@ USAGE:\n\
     notype_ascii_stream: An ascii file stream that contains only edge source and destination.\n\
     binary_stream:       A binary file stream.\n\
 \n\
-  Additionally, optional arguments must come last.";
+  Additionally, optional arguments must come last.\n\
+\n\
+  This tool will by default map the vertices to arbitrary ids in [0,n-1]. If you want to convert\n\
+  the stream from arbitrary vertex ids to [0,n-1] then use the same input_type and output_type.";
 
 // create a stream based on parsed information
 GraphStream *create_stream(std::string file_name, bool ascii, bool type, bool read) {
@@ -99,6 +103,8 @@ int main(int argc, char **argv) {
 
   output->write_header(num_nodes, num_edges);
 
+  std::unordered_map<node_id_t, node_id_t> vertex_id_map;
+  node_id_t vertex_id_counter = 0;
   std::vector<std::vector<bool>> adj_mat(num_nodes);
   for (node_id_t i = 0; i < num_nodes; ++i) adj_mat[i] = std::vector<bool>(num_nodes - i);
 
@@ -122,23 +128,28 @@ int main(int argc, char **argv) {
       }
 
       // process the update
-      node_id_t src = std::min(e.src, e.dst);
-      node_id_t dst = std::max(e.src, e.dst);
+      if (vertex_id_map.find(e.src) == vertex_id_map.end())
+        vertex_id_map[e.src] = vertex_id_counter++;
+      if (vertex_id_map.find(e.dst) == vertex_id_map.end())
+        vertex_id_map[e.dst] = vertex_id_counter++;
+      node_id_t src = std::min(vertex_id_map[e.src], vertex_id_map[e.dst]);
+      node_id_t dst = std::max(vertex_id_map[e.src], vertex_id_map[e.dst]);
 
       if (src == dst) {
         if (!silent)
           std::cerr << "WARNING: Dropping self loop edge " << src << ", " << dst << std::endl;
-
         ++ignored;
         continue;
       }
 
-      if (!silent && type != adj_mat[src][dst - src - 1]) {
+      if (!silent && in_file_type != "notype_ascii_stream" && type != adj_mat[src][dst - src - 1]) {
         std::cerr << "WARNING: update " << print_type(type) << " " << e.src << " " << e.dst;
         std::cerr << " is double insert or delete before insert." << std::endl;
       }
 
       buf[i].type = adj_mat[src][dst - src - 1];
+      buf[i].edge.src = src;
+      buf[i].edge.dst = dst;
       adj_mat[src][dst - src - 1] = !adj_mat[src][dst - src - 1];
 
       // shift past ignored if necessary
