@@ -107,5 +107,10 @@ if (BUILD_EXE)
     tools/streamifier.cpp)
   add_dependencies(streamifier StreamingUtilities)
   target_link_libraries(streamifier PRIVATE StreamingUtilities)
+
+  add_executable(queryifier
+    tools/queryifier.cpp)
+  add_dependencies(queryifier StreamingUtilities)
+  target_link_libraries(queryifier PRIVATE StreamingUtilities)
 endif()
 

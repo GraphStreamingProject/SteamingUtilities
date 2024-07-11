@@ -8,7 +8,8 @@
 enum UpdateType {
   INSERT = 0,
   DELETE = 1,
-  BREAKPOINT = 2
+  QUERY = 2,
+  BREAKPOINT = 3
 };
 
 struct Edge {
