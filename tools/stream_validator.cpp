@@ -74,6 +74,8 @@ int main(int argc, char **argv) {
       err = true;
       continue;
     }
+
+    if (u == QUERY) continue;
     
     node_id_t src = std::min(edge.src, edge.dst);
     node_id_t local_dst = std::max(edge.src, edge.dst) - src - 1;
