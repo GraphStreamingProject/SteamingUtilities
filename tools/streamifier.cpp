@@ -6,6 +6,7 @@
 #include <random>
 #include <vector>
 #include <queue>
+#include <unordered_set>
 #include <cstdlib>
 #include <chrono>
 #include <iomanip>
@@ -132,6 +133,12 @@ void shuffle_stream(size_t seed, std::string temp_file_name) {
   delete upd_buf2;
 }
 
+edge_id_t vertices_to_edge(node_id_t v1, node_id_t v2) {
+  edge_id_t src = (edge_id_t) std::min(v1, v2);
+  edge_id_t dst = (edge_id_t) std::max(v2, v1);
+  return (src << 32) + dst;
+}
+
 // take a binary stream and place the shuffled version in a file of a given name
 void remove_edges_from_stream(BinaryFileStream *input, std::string temp_file_name, std::vector<Edge> edges) {
   std::cout << "Removing forest edges from stream..." << std::endl;
@@ -147,6 +154,9 @@ void remove_edges_from_stream(BinaryFileStream *input, std::string temp_file_nam
 
   filtered_stream.write_header(input->vertices(), num_edges-edges.size());
 
+  std::unordered_set<edge_id_t> edge_set;
+  for (auto edge : edges) edge_set.insert(vertices_to_edge(edge.src, edge.dst));
+
   edge_id_t written = 0;
   for (edge_id_t e = 0; e < num_edges; e += buffer_size) {
     // read and filter updates at beginning of stream
@@ -156,17 +166,8 @@ void remove_edges_from_stream(BinaryFileStream *input, std::string temp_file_nam
     // filter the edges out in this batch
     edge_id_t output_count = 0;
     for (size_t i = 0; i < read; i++) {
-      bool found = false;
-      for (size_t j = 0; j < edges.size(); j++) {
-        Edge e1 = edges[j];
-        Edge e2 = upd_buf1[i].edge;
-        if ((e1.src == e2.src && e1.dst == e2.dst) || (e1.src == e2.dst && e1.dst == e2.src)) {
-          found = true;
-        }
-      }
-      if (!found) {
-        upd_buf2[output_count++] = upd_buf1[i];
-      }
+      bool found = edge_set.find(vertices_to_edge(upd_buf1[i].edge.src, upd_buf1[i].edge.dst)) != edge_set.end();
+      if (!found) upd_buf2[output_count++] = upd_buf1[i];
     }
     filtered_stream.write_updates(upd_buf2, output_count);
     written += output_count;

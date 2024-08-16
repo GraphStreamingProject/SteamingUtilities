@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
         continue;
       }
 
-      if (!silent && in_file_type != "notype_ascii_stream" && type != adj_mat[src][dst - src - 1]) {
+      if (!silent && in_file_type != "notype_ascii_stream" && type != QUERY && type != adj_mat[src][dst - src - 1]) {
         std::cerr << "WARNING: update " << print_type(type) << " " << e.src << " " << e.dst;
         std::cerr << " is double insert or delete before insert." << std::endl;
       }

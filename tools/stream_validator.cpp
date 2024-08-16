@@ -75,6 +75,12 @@ int main(int argc, char **argv) {
       continue;
     }
 
+    if (edge.src >= nodes || edge.dst >= nodes) {
+      err_edge(edge, u, e);
+      std::cerr << "       src or dst out of bounds." << std::endl;
+      err = true;
+    }
+    
     if (u == QUERY) continue;
     
     node_id_t src = std::min(edge.src, edge.dst);
@@ -87,11 +93,6 @@ int main(int argc, char **argv) {
     }
     adj_mat[src][local_dst] = !adj_mat[src][local_dst];
 
-    if (edge.src >= nodes || edge.dst >= nodes) {
-      err_edge(edge, u, e);
-      std::cerr << "       src or dst out of bounds." << std::endl;
-      err = true;
-    }
     if (e % 1000000000 == 0 && e != 0) {
       std::cout << e << "\r"; fflush(stdout);
     } 

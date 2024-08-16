@@ -32,7 +32,7 @@ USAGE:\n\
     seed seed:         [OPTIONAL] Define the seed to random number generation. If not defined one is\n\
                        chosen randomly.\n";
 
-const bool verbose = false;
+const bool verbose = true;
 
 size_t generate_seed() {
   auto ts = std::chrono::steady_clock::now();
@@ -136,6 +136,8 @@ int main(int argc, char **argv) {
   std::cout << "Creating Queryified Stream ..." << std::endl;
   for (; updates_remain > 0; updates_remain--) {
     GraphStreamUpdate update = input_updates[input_pos++];
+    if (update.edge.src >= input->vertices() || update.edge.dst >= input->vertices())
+      std::cout << update.edge.src << " " << update.edge.dst << std::endl;
     output_updates[output_pos++] = update;
     burst_updates++;
     // Deal with input/output stream buffering
