@@ -27,6 +27,7 @@ size_t populate_buf(GraphStream *stream, GraphStreamUpdate *buf, size_t buf_capa
     err = true;
     throw;
   }
+  return ret;
 }
 
 // Check that a stream is formatted correctly. Check that types are correct and
