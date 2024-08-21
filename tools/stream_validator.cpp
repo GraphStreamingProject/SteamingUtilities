@@ -82,7 +82,9 @@ int main(int argc, char **argv) {
       Edge edge = upd.edge;
       UpdateType u = static_cast<UpdateType>(upd.type);
 
-      if (u == BREAKPOINT) break;
+      // we allow breakpoints in the stream and don't freak out about it
+      // if they shouldn't be there then this should be reflected in the edge count
+      if (u == BREAKPOINT) continue;
   
       if (edge.src == edge.dst) {
         err_edge(edge, u, total_checked + e);
@@ -112,8 +114,8 @@ int main(int argc, char **argv) {
       std::cout << total_checked << "\r"; fflush(stdout);
     }
 
-    if (buf[updates - 1].type == BREAKPOINT) {
-      if (total_checked - 1 != edges) {
+    if (updates == 1 && buf[0].type == BREAKPOINT) {
+      if (total_checked - 2 != edges) { // end of stream breakpoint appears twice
         std::cerr << "ERROR: Total number of edges found in stream does not match expected!" << std::endl;
         std::cerr << "got: " << total_checked << " expected: " << edges << std::endl;
         err = true;
