@@ -18,6 +18,18 @@ void err_edge(Edge edge, UpdateType u, size_t e) {
             << type_string(u) << std::endl;
 }
 
+size_t populate_buf(GraphStream *stream, GraphStreamUpdate *buf, size_t buf_capacity, bool& err) {
+  size_t ret;
+  try {
+    ret = stream->get_update_buffer(buf, buf_capacity);
+  } catch (...) {
+    std::cerr << "ERROR: Could not get buffer!" << std::endl;
+    err = true;
+    throw;
+  }
+  return ret;
+}
+
 // Check that a stream is formatted correctly. Check that types are correct and
 // node ids are in range.
 
@@ -58,43 +70,56 @@ int main(int argc, char **argv) {
 
   // validate the type, src, and dst of each update in the stream
   bool err = false;
-  for (size_t e = 0; e < edges; e++) {
-    GraphStreamUpdate upd;
-    try {
-      stream->get_update_buffer(&upd, 1);
-    } catch (...) {
-      std::cerr << "ERROR: Could not get edge at index: " << e << std::endl;
-      err = true;
-      throw;
-    }
-    Edge edge = upd.edge;
-    UpdateType u = static_cast<UpdateType>(upd.type);
+  size_t buf_capacity = 1024;
+  GraphStreamUpdate buf[buf_capacity];
+  size_t total_checked = 0;
 
-    if (edge.src == edge.dst) {
-      err_edge(edge, u, e);
-      std::cerr << "       Cannot have equal src and dst" << std::endl;
-      err = true;
-      continue;
-    }
-    
-    node_id_t src = std::min(edge.src, edge.dst);
-    node_id_t local_dst = std::max(edge.src, edge.dst) - src - 1;
-    if (adj_mat[src][local_dst] != u) {
-      err_edge(edge, u, e);
-      std::cerr << "       Incorrect type! Expect: " << type_string(adj_mat[src][local_dst])
-                << std::endl;
-      err = true;
-    }
-    adj_mat[src][local_dst] = !adj_mat[src][local_dst];
+  while (true) {
+    size_t updates = populate_buf(stream, buf, buf_capacity, err);
 
-    if (edge.src >= nodes || edge.dst >= nodes) {
-      err_edge(edge, u, e);
-      std::cerr << "       src or dst out of bounds." << std::endl;
-      err = true;
+    for (size_t e = 0; e < updates; e++) {
+      GraphStreamUpdate upd = buf[e];
+      Edge edge = upd.edge;
+      UpdateType u = static_cast<UpdateType>(upd.type);
+
+      if (u == BREAKPOINT) break;
+  
+      if (edge.src == edge.dst) {
+        err_edge(edge, u, total_checked + e);
+        std::cerr << "       Cannot have equal src and dst" << std::endl;
+        err = true;
+        continue;
+      }
+      
+      node_id_t src = std::min(edge.src, edge.dst);
+      node_id_t local_dst = std::max(edge.src, edge.dst) - src - 1;
+      if (adj_mat[src][local_dst] != u) {
+        err_edge(edge, u, total_checked + e);
+        std::cerr << "       Incorrect type! Expect: " << type_string(adj_mat[src][local_dst])
+                  << std::endl;
+        err = true;
+      }
+      adj_mat[src][local_dst] = !adj_mat[src][local_dst];
+  
+      if (edge.src >= nodes || edge.dst >= nodes) {
+        err_edge(edge, u, total_checked + e);
+        std::cerr << "       src or dst out of bounds." << std::endl;
+        err = true;
+      } 
     }
-    if (e % 1000000000 == 0 && e != 0) {
-      std::cout << e << "\r"; fflush(stdout);
-    } 
+    total_checked += updates;
+    if (total_checked % (buf_capacity * 10000) == 0) {
+      std::cout << total_checked << "\r"; fflush(stdout);
+    }
+
+    if (buf[updates - 1].type == BREAKPOINT) {
+      if (total_checked - 1 != edges) {
+        std::cerr << "ERROR: Total number of edges found in stream does not match expected!" << std::endl;
+        std::cerr << "got: " << total_checked << " expected: " << edges << std::endl;
+        err = true;
+      }
+      break;
+    }
   }
   std::cout << std::endl;
 
@@ -144,8 +169,12 @@ int main(int argc, char **argv) {
       }
     }
 
-    if (!err) std::cout << "Resulting graph matches cumulative file!" << std::endl;
-    if (err) std::cout << "ERROR: Resulting graph does not match cumulative file!" << std::endl;
+    if (!err) std::cerr << "Resulting graph matches cumulative file!" << std::endl;
+    if (err) {
+      std::cerr << "ERROR: Resulting graph does not match cumulative file!" << std::endl;
+      delete stream;
+      exit(EXIT_FAILURE);
+    }
   }
 
   delete stream;
