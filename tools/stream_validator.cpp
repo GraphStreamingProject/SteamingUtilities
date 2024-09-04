@@ -43,11 +43,11 @@ int main(int argc, char **argv) {
 
   node_id_t nodes = stream->vertices();
   size_t edges    = stream->edges();
-
+  size_t queries = 0;
   std::cout << "Attempting to validate stream " << argv[1] << std::endl;
   std::cout << "Number of nodes   = " << nodes << std::endl;
   std::cout << "Number of updates = " << edges << std::endl;
-
+  
   // create an adjacency matrix
   std::vector<std::vector<bool>> adj_mat(nodes);
   for (node_id_t i = 0; i < nodes; i++) {
@@ -81,7 +81,10 @@ int main(int argc, char **argv) {
       err = true;
     }
     
-    if (u == QUERY) continue;
+    if (u == QUERY) {
+      queries++;
+      continue;
+    }
     
     node_id_t src = std::min(edge.src, edge.dst);
     node_id_t local_dst = std::max(edge.src, edge.dst) - src - 1;
@@ -97,8 +100,9 @@ int main(int argc, char **argv) {
       std::cout << e << "\r"; fflush(stdout);
     } 
   }
+  std::cout << "Number of queries = " << queries << std::endl;
   std::cout << std::endl;
-
+  
   if (!err) std::cout << "Stream validated!" << std::endl;
   if (err) {
     std::cout << "ERROR: Stream invalid!" << std::endl;
