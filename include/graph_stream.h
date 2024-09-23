@@ -12,7 +12,7 @@ class GraphStream {
   inline edge_id_t edges() { return num_edges; }
 
   // Extract a buffer of many updates from the stream
-  virtual size_t get_update_buffer(GraphStreamUpdate* upd_buf, edge_id_t num_updates) = 0;
+  virtual size_t get_update_buffer(GraphUpdate* upd_buf, edge_id_t num_updates) = 0;
 
   // Query the GraphStream to see if get_update_buffer is thread-safe
   // this is implemenation dependent
@@ -37,7 +37,7 @@ class GraphStream {
   // and you will not need to write feel free to have these throw StreamExceptions
   // if called.
   virtual void write_header(node_id_t num_verts, edge_id_t num_edg) = 0;
-  virtual void write_updates(GraphStreamUpdate* upd, edge_id_t num_updates) = 0;
+  virtual void write_updates(GraphUpdate* upd, edge_id_t num_updates) = 0;
 
   // construct a stream object from serialized metadata
   static GraphStream* construct_stream_from_metadata(std::istream &in);

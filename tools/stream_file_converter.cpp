@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
   for (node_id_t i = 0; i < num_nodes; ++i) adj_mat[i] = std::vector<bool>(num_nodes - i);
 
   constexpr size_t buf_capacity = 1024;
-  GraphStreamUpdate buf[buf_capacity];
+  GraphUpdate buf[buf_capacity];
   size_t true_edges = 0;
 
   bool processing = true;
@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
     size_t read = input->get_update_buffer(buf, buf_capacity);
     size_t ignored = 0;
     for (size_t i = 0; i < read; i++) {
-      GraphStreamUpdate upd = buf[i];
+      GraphUpdate upd = buf[i];
       UpdateType type = (UpdateType) upd.type;
       Edge e = upd.edge;
 
@@ -138,7 +138,7 @@ int main(int argc, char **argv) {
         std::cerr << " is double insert or delete before insert." << std::endl;
       }
 
-      buf[i].type = adj_mat[src][dst - src - 1];
+      buf[i].type = UpdateType((bool) adj_mat[src][dst - src - 1]);
       adj_mat[src][dst - src - 1] = !adj_mat[src][dst - src - 1];
 
       // shift past ignored if necessary

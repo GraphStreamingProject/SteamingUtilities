@@ -8,7 +8,7 @@
 // all the edge updates and labels them appropriately.
 class DynamicErdosGenerator {
  private:
-  std::vector<GraphStreamUpdate> updates;
+  std::vector<GraphUpdate> updates;
   std::vector<Edge> true_edges;
   node_id_t num_vertices;
   size_t seed;
@@ -34,7 +34,7 @@ class DynamicErdosGenerator {
   void to_ascii_file(std::string file_name);
   void write_cumulative_file(std::string file_name);
 
-  GraphStreamUpdate get_next_edge();
+  GraphUpdate get_next_edge();
 
   // getters
   node_id_t get_num_vertices() { return num_vertices; }

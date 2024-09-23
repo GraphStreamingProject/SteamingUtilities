@@ -22,7 +22,7 @@ int main() {
   std::cout << "num_edges    = " << st_stream.get_num_edges() << std::endl;
 
   for (edge_id_t e = 0; e < st_stream.get_num_edges(); e++) {
-    GraphStreamUpdate upd = st_stream.get_next_edge();
+    GraphUpdate upd = st_stream.get_next_edge();
     std::cout << type_string(upd.type) << " " << upd.edge.src << " " << upd.edge.dst << std::endl;
   }
 
@@ -32,7 +32,7 @@ int main() {
   std::cout << "num_edges    = " << dy_stream.get_num_edges() << std::endl;
 
   // for (edge_id_t e = 0; e < dy_stream.get_num_edges(); e++) {
-  //   GraphStreamUpdate upd = dy_stream.get_next_edge();
+  //   GraphUpdate upd = dy_stream.get_next_edge();
   //   std::cout << type_string(upd.type) << " " << upd.edge.src << " " << upd.edge.dst << std::endl;
   // }
 

@@ -18,7 +18,7 @@ void err_edge(Edge edge, UpdateType u, size_t e) {
             << type_string(u) << std::endl;
 }
 
-size_t populate_buf(GraphStream *stream, GraphStreamUpdate *buf, size_t buf_capacity, bool& err) {
+size_t populate_buf(GraphStream *stream, GraphUpdate *buf, size_t buf_capacity, bool& err) {
   size_t ret;
   try {
     ret = stream->get_update_buffer(buf, buf_capacity);
@@ -71,14 +71,14 @@ int main(int argc, char **argv) {
   // validate the type, src, and dst of each update in the stream
   bool err = false;
   size_t buf_capacity = 1024;
-  GraphStreamUpdate buf[buf_capacity];
+  GraphUpdate buf[buf_capacity];
   size_t total_checked = 0;
 
   while (true) {
     size_t updates = populate_buf(stream, buf, buf_capacity, err);
 
     for (size_t e = 0; e < updates; e++) {
-      GraphStreamUpdate upd = buf[e];
+      GraphUpdate upd = buf[e];
       Edge edge = upd.edge;
       UpdateType u = static_cast<UpdateType>(upd.type);
 
@@ -150,7 +150,7 @@ int main(int argc, char **argv) {
     }
 
     for (size_t e = 0; e < cumul_edges; e++) {
-      GraphStreamUpdate upd;
+      GraphUpdate upd;
       cumul_stream.get_update_buffer(&upd, 1);
 
       node_id_t src = std::min(upd.edge.src, upd.edge.dst);

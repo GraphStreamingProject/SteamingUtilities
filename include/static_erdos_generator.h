@@ -21,7 +21,7 @@ class StaticErdosGenerator {
   void to_binary_file(std::string file_name);
   void to_ascii_file(std::string file_name);
 
-  GraphStreamUpdate get_next_edge();
+  GraphUpdate get_next_edge();
 
   // getters
   node_id_t get_num_vertices() { return num_vertices; }

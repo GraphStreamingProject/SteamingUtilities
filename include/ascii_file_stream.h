@@ -29,12 +29,12 @@ class AsciiFileStream : public GraphStream {
       stream_file >> num_vertices >> num_edges;
   }
 
-  inline size_t get_update_buffer(GraphStreamUpdate* upd_buf, size_t num_updates) {
+  inline size_t get_update_buffer(GraphUpdate* upd_buf, size_t num_updates) {
     assert(upd_buf != nullptr);
 
     size_t i = 0;
     for (; i < num_updates; i++) {
-      GraphStreamUpdate& upd = upd_buf[i];
+      GraphUpdate& upd = upd_buf[i];
 
       if (upd_offset >= num_edges || upd_offset >= break_edge_idx) {
         upd.type = BREAKPOINT;
@@ -45,7 +45,7 @@ class AsciiFileStream : public GraphStream {
       if (has_type)
         stream_file >> type;
       stream_file >> upd.edge.src >> upd.edge.dst;
-      upd.type = type;
+      upd.type = (UpdateType) type;
       ++upd_offset;
     }
     return i;
@@ -61,7 +61,7 @@ class AsciiFileStream : public GraphStream {
     num_edges = num_edg;
   }
 
-  inline void write_updates(GraphStreamUpdate* upd_buf, edge_id_t num_updates) {
+  inline void write_updates(GraphUpdate* upd_buf, edge_id_t num_updates) {
     for (edge_id_t i = 0; i < num_updates; i++) {
       auto upd = upd_buf[i];
       if (has_type)

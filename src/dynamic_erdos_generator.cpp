@@ -91,7 +91,7 @@ DynamicErdosGenerator::DynamicErdosGenerator(size_t seed, node_id_t num_vertices
 
 void write_to_file(GraphStream *stream, DynamicErdosGenerator &gen) {
   size_t buffer_capacity = 4096;
-  GraphStreamUpdate upds[buffer_capacity];
+  GraphUpdate upds[buffer_capacity];
   size_t buffer_size = 0;
   stream->write_header(gen.get_num_vertices(), gen.get_num_edges());
 
@@ -121,7 +121,7 @@ void DynamicErdosGenerator::write_cumulative_file(std::string file_name) {
   AsciiFileStream output_stream(file_name, false);
 
   size_t buffer_capacity = 4096;
-  GraphStreamUpdate upds[buffer_capacity];
+  GraphUpdate upds[buffer_capacity];
   size_t buffer_size = 0;
   output_stream.write_header(num_vertices, true_edges.size());
 
@@ -137,4 +137,4 @@ void DynamicErdosGenerator::write_cumulative_file(std::string file_name) {
   }
 }
 
-GraphStreamUpdate DynamicErdosGenerator::get_next_edge() { return updates[edge_idx++]; }
+GraphUpdate DynamicErdosGenerator::get_next_edge() { return updates[edge_idx++]; }

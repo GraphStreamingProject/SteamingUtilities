@@ -5,7 +5,7 @@
 // Is a stream update an insertion or a deletion
 // BREAKPOINT: special type that indicates that a break point has been reached
 // a break point may be either the end of the stream or the index of a query
-enum UpdateType {
+enum UpdateType : uint8_t {
   INSERT = 0,
   DELETE = 1,
   BREAKPOINT = 2
@@ -26,8 +26,8 @@ struct Edge {
 };
 
 #pragma pack(push,1)
-struct GraphStreamUpdate {
-  uint8_t type;
+struct GraphUpdate {
+  UpdateType type;
   Edge edge;
 };
 #pragma pack(pop)

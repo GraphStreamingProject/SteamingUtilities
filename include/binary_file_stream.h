@@ -46,7 +46,7 @@ class BinaryFileStream : public GraphStream {
     if (stream_fd) close(stream_fd);
   }
 
-  inline size_t get_update_buffer(GraphStreamUpdate* upd_buf, size_t num_updates) {
+  inline size_t get_update_buffer(GraphUpdate* upd_buf, size_t num_updates) {
     assert(upd_buf != nullptr);
 
     // many threads may execute this line simultaneously creating edge cases
@@ -72,7 +72,7 @@ class BinaryFileStream : public GraphStream {
 
     size_t upds_read = bytes_to_read / edge_size;
     if (upds_read < num_updates) {
-      GraphStreamUpdate& upd = upd_buf[upds_read];
+      GraphUpdate& upd = upd_buf[upds_read];
       upd.type = BREAKPOINT;
       upd.edge = {0, 0};
       return upds_read + 1;
@@ -103,7 +103,7 @@ class BinaryFileStream : public GraphStream {
   }
 
   // write an edge to the stream
-  inline void write_updates(GraphStreamUpdate* upd, edge_id_t num_updates) {
+  inline void write_updates(GraphUpdate* upd, edge_id_t num_updates) {
     if (read_only) throw StreamException("BinaryFileStream: stream not open for writing!");
 
     size_t bytes_to_write = num_updates * edge_size;
@@ -156,6 +156,6 @@ class BinaryFileStream : public GraphStream {
   const std::string file_name;
 
   // size of binary encoded edge and buffer read size
-  static constexpr size_t edge_size = sizeof(GraphStreamUpdate);
+  static constexpr size_t edge_size = sizeof(GraphUpdate);
   static constexpr size_t header_size = sizeof(node_id_t) + sizeof(edge_id_t);
 };

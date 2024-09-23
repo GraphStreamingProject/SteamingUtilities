@@ -84,6 +84,16 @@ void copy_file(std::string src_file_name, std::string dst_file_name) {
   output << input.rdbuf();
 }
 
+size_t get_upd_buffer_no_break(GraphStream *stream, GraphUpdate *buf, size_t buf_size) {
+  size_t read = stream->get_update_buffer(buf, buf_size);
+
+  if (read > 0 && buf[read - 1].type == BREAKPOINT) {
+    read--;
+  }
+
+  return read;
+}
+
 // take a binary stream and place the shuffled version in a file of a given name
 void shuffle_stream(size_t seed, std::string temp_file_name) {
   std::cout << "Shuffling Stream..." << std::endl;
@@ -94,8 +104,8 @@ void shuffle_stream(size_t seed, std::string temp_file_name) {
 
   std::cout << "shuffled stream edges = " << num_edges << std::endl;
 
-  GraphStreamUpdate *upd_buf1 = new GraphStreamUpdate[buffer_size];
-  GraphStreamUpdate *upd_buf2 = new GraphStreamUpdate[buffer_size];
+  GraphUpdate *upd_buf1 = new GraphUpdate[buffer_size];
+  GraphUpdate *upd_buf2 = new GraphUpdate[buffer_size];
 
   std::mt19937_64 rand_gen(seed * 107);
 
@@ -105,7 +115,7 @@ void shuffle_stream(size_t seed, std::string temp_file_name) {
     for (edge_id_t e = 0; e < num_edges; e += buffer_size) {
       // read and shuffle updates at beginning of stream
       shuf_stream.seek(e);
-      size_t read = shuf_stream.get_update_buffer(upd_buf1, buffer_size);
+      size_t read = get_upd_buffer_no_break(&shuf_stream, upd_buf1, buffer_size);
       std::shuffle(&upd_buf1[e], &upd_buf1[e + read], rand_gen);
 
       // choose a position where we can place the buffer
@@ -204,8 +214,8 @@ void add_updates_for_checkpoint(size_t seed, BinaryFileStream *input, BinaryFile
 
   // stream management variables
   size_t buffer_size = 4096;
-  GraphStreamUpdate input_updates[buffer_size];
-  GraphStreamUpdate output_updates[buffer_size];
+  GraphUpdate input_updates[buffer_size];
+  GraphUpdate output_updates[buffer_size];
   size_t input_pos = 0;
   size_t output_pos = 0;
   size_t updates = input->get_update_buffer(input_updates, buffer_size);
@@ -250,7 +260,7 @@ void add_updates_for_checkpoint(size_t seed, BinaryFileStream *input, BinaryFile
 
     bool present = adj_mat[src][local_dst];
     adj_mat[src][local_dst] = !adj_mat[src][local_dst];
-    output_updates[output_pos++] = {present, edge};
+    output_updates[output_pos++] = {(UpdateType) present, edge};
 
     // deal with input/output stream buffering
     if (input_pos >= updates) {
